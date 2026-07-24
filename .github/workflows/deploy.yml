@@ -1,0 +1,55 @@
+name: Deploy Backend to Azure VM
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Copy Backend to Server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          source: "backend/*"
+          target: "/opt/ai-startup-evaluation"
+          strip_components: 1
+
+      - name: Deploy Application
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            set -e
+
+            APP_DIR=/opt/ai-startup-evaluation
+
+            cd $APP_DIR
+
+            if [ ! -d "venv" ]; then
+              python3 -m venv venv
+            fi
+
+            source venv/bin/activate
+
+            pip install --upgrade pip
+            pip install -r requirements.txt
+            pip install gunicorn
+
+            sudo systemctl daemon-reload
+            sudo systemctl restart ai-startup || sudo systemctl start ai-startup
+
+            sudo systemctl status ai-startup --no-pager
+
+            sudo nginx -t
+            sudo systemctl reload nginx
