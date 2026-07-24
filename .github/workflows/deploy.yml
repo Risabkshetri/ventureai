@@ -25,7 +25,7 @@ jobs:
             set -e
 
             APP_DIR="/opt/ai-startup-evaluation"
-            REPO_URL="https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPOSITORY.git"
+            REPO_URL="https://github.com/Risabkshetri/ventureai.git"
 
             echo "Checking application directory..."
 
