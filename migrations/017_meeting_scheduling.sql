@@ -1,0 +1,4 @@
+ALTER TABLE meeting_requests
+    ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS meeting_link TEXT,
+    ADD COLUMN IF NOT EXISTS agenda TEXT;

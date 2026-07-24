@@ -1,0 +1,5 @@
+# Ruff — linter + formatter (replaces black, isort, flake8)
+ruff>=0.12.0
+
+# Mypy — static type checking
+mypy>=1.16.0

@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "C:\Users\Shivam Ojha\OneDrive\Attachments\Pictures\Desktop\venture-ai\venture-ai\backend\app\api\startups.py", line 187, in upload_pitch_deck
+    }).execute()
+       ~~~~~~~^^
+  File "C:\Users\Shivam Ojha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\postgrest\_sync\request_builder.py", line 96, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'new row violates row-level security policy for table "evaluations"', 'code': '42501', 'hint': None, 'details': None}
