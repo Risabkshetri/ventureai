@@ -21,13 +21,14 @@ jobs:
           username: ${{ secrets.VM_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
           script_stop: true
+          command_timeout: 30m
           script: |
             set -e
 
             APP_DIR="/opt/ai-startup-evaluation"
             REPO_URL="https://github.com/Risabkshetri/ventureai.git"
 
-            echo "Checking application directory..."
+            echo "========== Checking repository =========="
 
             if [ ! -d "$APP_DIR/.git" ]; then
               echo "First deployment..."
@@ -43,34 +44,54 @@ jobs:
 
             cd "$APP_DIR"
 
-            echo "Updating repository..."
+            echo "========== Updating code =========="
+
             git fetch origin
             git reset --hard origin/main
 
-            if [ ! -d "venv" ]; then
+            echo "========== Installing system packages =========="
+
+            sudo apt-get update
+
+            sudo apt-get install -y \
+              python3 \
+              python3-pip \
+              python3-venv \
+              build-essential
+
+            echo "========== Preparing virtual environment =========="
+
+            if [ ! -f "venv/bin/activate" ]; then
+              echo "Creating fresh virtual environment..."
+
+              rm -rf venv
+
               python3 -m venv venv
             fi
 
             source venv/bin/activate
 
-            python -m pip install --upgrade pip
+            echo "========== Installing Python packages =========="
+
+            python -m pip install --upgrade pip setuptools wheel
 
             pip install -r requirements.txt
 
-            if [ -f "pyproject.toml" ]; then
-              pip install -e .
-            fi
+            echo "========== Running migrations =========="
 
             if command -v alembic >/dev/null 2>&1; then
               alembic upgrade head || true
             fi
 
+            echo "========== Restarting services =========="
+
             sudo systemctl daemon-reload
 
             if systemctl list-unit-files | grep -q "^ai-startup.service"; then
               sudo systemctl restart ai-startup
+              sudo systemctl status ai-startup --no-pager
             else
-              echo "ai-startup.service not found. Skipping restart."
+              echo "ai-startup.service not found."
             fi
 
             if command -v nginx >/dev/null 2>&1; then
@@ -78,4 +99,4 @@ jobs:
               sudo systemctl reload nginx
             fi
 
-            echo "Deployment completed successfully!"
+            echo "========== Deployment Successful =========="
