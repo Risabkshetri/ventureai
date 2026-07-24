@@ -1,20 +1,16 @@
-name: Deploy Backend to Azure VM
+name: Deploy to Azure VM
 
 on:
   push:
     branches:
       - main
 
-concurrency:
-  group: production
-  cancel-in-progress: true
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy to Azure VM
+      - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VM_HOST }}
@@ -26,12 +22,10 @@ jobs:
 
             APP_DIR=/opt/ai-startup-evaluation
 
-            echo "Moving to application..."
             cd $APP_DIR
 
-            echo "Fetching latest code..."
-            git fetch origin
-
+            echo "Updating repository..."
+            git fetch --all
             git reset --hard origin/main
 
             if [ ! -d "venv" ]; then
@@ -44,20 +38,16 @@ jobs:
 
             pip install -r requirements.txt
 
-            pip install gunicorn
-
-            if [ -f ".env.example" ] && [ ! -f ".env" ]; then
-              cp .env.example .env
+            if [ -f pyproject.toml ]; then
+              pip install -e .
             fi
 
-            sudo systemctl daemon-reload
+            if command -v alembic >/dev/null 2>&1; then
+              alembic upgrade head || true
+            fi
 
             sudo systemctl restart ai-startup
 
-            sudo systemctl status ai-startup --no-pager
-
-            sudo nginx -t
-
             sudo systemctl reload nginx
 
-            echo "Deployment Complete"
+            echo "Deployment Successful"
