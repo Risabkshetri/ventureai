@@ -1,16 +1,20 @@
-name: Deploy to Azure VM
+name: Deploy Backend to Azure VM
 
 on:
   push:
     branches:
       - main
 
+concurrency:
+  group: production
+  cancel-in-progress: true
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy via SSH
+      - name: Deploy to Azure VM
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VM_HOST }}
@@ -21,33 +25,27 @@ jobs:
             set -e
 
             APP_DIR=/opt/ai-startup-evaluation
+            REPO_URL=https://github.com/<YOUR_USERNAME>/<YOUR_REPO>.git
+
+            if [ ! -d "$APP_DIR/.git" ]; then
+                echo "First deployment..."
+                sudo rm -rf $APP_DIR
+                git clone $REPO_URL $APP_DIR
+            fi
 
             cd $APP_DIR
 
-            echo "Updating repository..."
-            git fetch --all
+            git fetch origin
             git reset --hard origin/main
 
             if [ ! -d "venv" ]; then
-              python3 -m venv venv
+                python3 -m venv venv
             fi
 
             source venv/bin/activate
 
             python -m pip install --upgrade pip
-
             pip install -r requirements.txt
 
-            if [ -f pyproject.toml ]; then
-              pip install -e .
-            fi
-
-            if command -v alembic >/dev/null 2>&1; then
-              alembic upgrade head || true
-            fi
-
             sudo systemctl restart ai-startup
-
             sudo systemctl reload nginx
-
-            echo "Deployment Successful"
