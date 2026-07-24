@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy to Azure VM
+      - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VM_HOST }}
@@ -24,28 +24,58 @@ jobs:
           script: |
             set -e
 
-            APP_DIR=/opt/ai-startup-evaluation
-            REPO_URL=https://github.com/<YOUR_USERNAME>/<YOUR_REPO>.git
+            APP_DIR="/opt/ai-startup-evaluation"
+            REPO_URL="https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPOSITORY.git"
+
+            echo "Checking application directory..."
 
             if [ ! -d "$APP_DIR/.git" ]; then
-                echo "First deployment..."
-                sudo rm -rf $APP_DIR
-                git clone $REPO_URL $APP_DIR
+              echo "First deployment..."
+
+              sudo mkdir -p /opt
+
+              if [ -d "$APP_DIR" ]; then
+                sudo rm -rf "$APP_DIR"
+              fi
+
+              git clone "$REPO_URL" "$APP_DIR"
             fi
 
-            cd $APP_DIR
+            cd "$APP_DIR"
 
+            echo "Updating repository..."
             git fetch origin
             git reset --hard origin/main
 
             if [ ! -d "venv" ]; then
-                python3 -m venv venv
+              python3 -m venv venv
             fi
 
             source venv/bin/activate
 
             python -m pip install --upgrade pip
+
             pip install -r requirements.txt
 
-            sudo systemctl restart ai-startup
-            sudo systemctl reload nginx
+            if [ -f "pyproject.toml" ]; then
+              pip install -e .
+            fi
+
+            if command -v alembic >/dev/null 2>&1; then
+              alembic upgrade head || true
+            fi
+
+            sudo systemctl daemon-reload
+
+            if systemctl list-unit-files | grep -q "^ai-startup.service"; then
+              sudo systemctl restart ai-startup
+            else
+              echo "ai-startup.service not found. Skipping restart."
+            fi
+
+            if command -v nginx >/dev/null 2>&1; then
+              sudo nginx -t
+              sudo systemctl reload nginx
+            fi
+
+            echo "Deployment completed successfully!"
